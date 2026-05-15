@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { BrandLogo, Button, Card, Input } from "@st-anthonys/ui";
 import { api } from "@/lib/api";
 
 export default function LoginPage() {
@@ -34,43 +35,47 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="container" style={{ maxWidth: 400 }}>
-      <div className="card">
-        <h2>{isRegister ? "Create account" : "Sign in"}</h2>
-        <p style={{ fontSize: "0.875rem", color: "#666", marginBottom: "1rem" }}>
-          Demo: driver@demo.lk / demo1234
-        </p>
-        <form onSubmit={handleSubmit}>
+    <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-4 py-12">
+      <div className="mb-6 text-center">
+        <BrandLogo size={80} className="mx-auto" />
+        <p className="mt-3 text-sm text-surface-ink-muted">St. Anthony&apos;s Charge Network</p>
+      </div>
+      <Card className="w-full">
+        <h2 className="text-xl font-bold tracking-tight">
+          {isRegister ? "Create account" : "Sign in"}
+        </h2>
+        <p className="mt-1 mb-4 text-sm text-surface-ink-muted">Demo: driver@demo.lk / demo1234</p>
+        <form onSubmit={handleSubmit} className="space-y-3">
           {isRegister && (
-            <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+            <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required />
           )}
-          <input
+          <Input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          <input
+          <Input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          {error && <p style={{ color: "crimson", marginBottom: "0.5rem" }}>{error}</p>}
-          <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: "100%" }}>
+          {error && <p className="text-sm text-status-busy">{error}</p>}
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "…" : isRegister ? "Register" : "Sign in"}
-          </button>
+          </Button>
         </form>
         <button
           type="button"
           onClick={() => setIsRegister(!isRegister)}
-          style={{ marginTop: "1rem", background: "none", border: "none", color: "var(--sa-green)" }}
+          className="mt-4 w-full border-0 bg-transparent text-sm text-brand-teal hover:underline"
         >
           {isRegister ? "Already have an account?" : "Create an account"}
         </button>
-      </div>
+      </Card>
     </main>
   );
 }

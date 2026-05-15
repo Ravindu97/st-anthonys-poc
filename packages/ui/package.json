@@ -1,0 +1,23 @@
+{
+  "name": "@st-anthonys/ui",
+  "version": "0.0.1",
+  "private": true,
+  "sideEffects": ["**/*.css"],
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles/globals.css": "./src/styles/globals.css"
+  },
+  "dependencies": {
+    "@st-anthonys/shared": "workspace:*",
+    "clsx": "^2.1.1"
+  },
+  "peerDependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.6",
+    "typescript": "^5.8.3"
+  }
+}

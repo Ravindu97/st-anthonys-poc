@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { BrandLogo, Button, Card, Input } from "@st-anthonys/ui";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -38,20 +39,28 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <main style={{ maxWidth: 400, margin: "4rem auto", padding: "1rem" }}>
-      <div className="card">
-        <h2>Admin sign in</h2>
-        <p style={{ fontSize: "0.875rem", color: "#666", margin: "0.5rem 0 1rem" }}>
-          admin@stanthonys.lk / admin1234
-        </p>
-        <form onSubmit={handleSubmit}>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          {error && <p style={{ color: "crimson", marginBottom: "0.5rem" }}>{error}</p>}
-          <button type="submit" className="btn" style={{ width: "100%", background: "var(--admin-navy)", color: "white" }}>
-            Sign in
-          </button>
-        </form>
+    <main className="flex min-h-screen items-center justify-center bg-surface-bg px-4 py-12">
+      <div className="w-full max-w-md">
+        <div className="mb-6 text-center">
+          <BrandLogo size={120} className="mx-auto" />
+          <p className="mt-3 text-sm text-surface-ink-muted">Operations dashboard</p>
+        </div>
+        <Card>
+          <h2 className="text-xl font-bold tracking-tight">Admin sign in</h2>
+          <p className="mt-1 mb-4 text-sm text-surface-ink-muted">admin@stanthonys.lk / admin1234</p>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            {error && <p className="text-sm text-status-busy">{error}</p>}
+            <Button type="submit" className="w-full">
+              Sign in
+            </Button>
+          </form>
+        </Card>
       </div>
     </main>
   );
