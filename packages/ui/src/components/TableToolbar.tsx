@@ -17,10 +17,10 @@ export function TableToolbar({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col gap-3 border-b border-surface-border p-4", className)}>
-      <div className="flex flex-wrap items-end gap-3">
+    <div className={cn("flex flex-col gap-3 border-b border-surface-border p-3 sm:p-4", className)}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         {onSearchChange !== undefined && (
-          <div className="min-w-[200px] flex-1">
+          <div className="w-full min-w-0 flex-1 sm:min-w-[200px]">
             <Input
               type="search"
               placeholder={searchPlaceholder}
@@ -30,7 +30,9 @@ export function TableToolbar({
           </div>
         )}
         {filters}
-        {actions && <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>}
+        {actions && (
+          <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">{actions}</div>
+        )}
       </div>
     </div>
   );

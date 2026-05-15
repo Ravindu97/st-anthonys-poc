@@ -58,7 +58,7 @@ function OverviewContent() {
   return (
     <>
       <PageTitle>Network overview</PageTitle>
-      <Card className="mb-6 p-4">
+      <Card className="mb-4 p-3 sm:mb-6 sm:p-4">
         <div className="flex flex-col gap-4">
           <DateRangePresets from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
           <DateRangeFilter

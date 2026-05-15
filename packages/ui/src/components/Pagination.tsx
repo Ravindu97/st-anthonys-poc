@@ -23,11 +23,16 @@ export function Pagination({
   const to = Math.min(page * pageSize, total);
 
   return (
-    <div className={cn("flex flex-wrap items-center justify-between gap-3 px-3 py-3", className)}>
-      <p className="text-sm text-surface-ink-muted">
+    <div
+      className={cn(
+        "flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between",
+        className
+      )}
+    >
+      <p className="text-center text-sm text-surface-ink-muted sm:text-left">
         Showing {from}–{to} of {total}
       </p>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
         {onPageSizeChange && (
           <label className="flex items-center gap-2 text-sm text-surface-ink-muted">
             Per page

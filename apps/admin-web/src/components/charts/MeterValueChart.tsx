@@ -18,6 +18,21 @@ type MeterPoint = {
   socPercent: number | null;
 };
 
+function ChartPanel({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <h4 className="mb-2 text-sm font-semibold text-surface-ink">{title}</h4>
+      <div className="h-[180px] w-full sm:h-[200px]">{children}</div>
+    </div>
+  );
+}
+
 export function MeterValueChart({ meterValues }: { meterValues: MeterPoint[] }) {
   if (meterValues.length === 0) {
     return <p className="py-8 text-center text-sm text-surface-ink-muted">No meter values recorded.</p>;
@@ -33,9 +48,8 @@ export function MeterValueChart({ meterValues }: { meterValues: MeterPoint[] }) 
 
   return (
     <div className="space-y-6">
-      <div>
-        <h4 className="mb-2 text-sm font-semibold text-surface-ink">Power (kW)</h4>
-        <ResponsiveContainer width="100%" height={200}>
+      <ChartPanel title="Power (kW)">
+        <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
@@ -44,11 +58,11 @@ export function MeterValueChart({ meterValues }: { meterValues: MeterPoint[] }) 
             <Line type="monotone" dataKey="power" stroke="#0d9488" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
-      </div>
+      </ChartPanel>
+
       {data.some((d) => d.soc !== undefined) && (
-        <div>
-          <h4 className="mb-2 text-sm font-semibold text-surface-ink">State of charge (%)</h4>
-          <ResponsiveContainer width="100%" height={200}>
+        <ChartPanel title="State of charge (%)">
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
@@ -57,11 +71,11 @@ export function MeterValueChart({ meterValues }: { meterValues: MeterPoint[] }) 
               <Line type="monotone" dataKey="soc" stroke="#ca8a04" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </ChartPanel>
       )}
-      <div>
-        <h4 className="mb-2 text-sm font-semibold text-surface-ink">Energy (kWh)</h4>
-        <ResponsiveContainer width="100%" height={200}>
+
+      <ChartPanel title="Energy (kWh)">
+        <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
@@ -71,7 +85,7 @@ export function MeterValueChart({ meterValues }: { meterValues: MeterPoint[] }) 
             <Line type="monotone" dataKey="energy" stroke="#6366f1" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
-      </div>
+      </ChartPanel>
     </div>
   );
 }

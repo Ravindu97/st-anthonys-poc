@@ -16,14 +16,16 @@ export function HubUtilizationChart({ hubs }: { hubs: AdminHubSummary[] }) {
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={240}>
-      <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 48, bottom: 0 }}>
+    <div className="h-[200px] w-full sm:h-[240px]">
+      <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data} layout="vertical" margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-surface-border" />
         <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} unit="%" />
-        <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={80} />
+        <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={64} />
         <Tooltip formatter={(v: number) => [`${v}%`, "Utilization"]} />
         <Bar dataKey="utilization" fill="#0d9488" name="Utilization %" radius={[0, 4, 4, 0]} />
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }

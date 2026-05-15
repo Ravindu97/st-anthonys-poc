@@ -9,8 +9,9 @@ export function StatusBarChart({ data }: { data: AdminFleetByCity[] }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+    <div className="h-[220px] w-full sm:h-[280px]">
+      <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-surface-border" />
         <XAxis dataKey="city" tick={{ fontSize: 12 }} />
         <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
@@ -23,5 +24,6 @@ export function StatusBarChart({ data }: { data: AdminFleetByCity[] }) {
         <Bar dataKey="unavailable" stackId="a" fill="#f59e0b" name="Unavailable" />
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }
