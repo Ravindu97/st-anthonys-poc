@@ -1,7 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "./Card";
-import { StatusBadge } from "./StatusBadge";
-import { Button } from "./Button";
 import { cn } from "../lib/cn";
 
 export type StationCardChargePoint = {
@@ -21,116 +22,234 @@ export type StationCardSite = {
   chargePoints: StationCardChargePoint[];
 };
 
-function firstAvailableConnector(site: StationCardSite): string | null {
-  for (const cp of site.chargePoints) {
-    for (const c of cp.connectors) {
-      if (c.status.toLowerCase() === "available") return c.id;
-    }
-  }
-  for (const cp of site.chargePoints) {
-    if (cp.connectors[0]) return cp.connectors[0].id;
-  }
-  return null;
+type GunOption = {
+  connectorId: string;
+  connectorNum: number;
+  status: string;
+  maxKw: number;
+};
+
+function isAvailable(status: string) {
+  return status.toLowerCase() === "available";
 }
 
-export function StationCard({ site }: { site: StationCardSite }) {
-  const connectorId = firstAvailableConnector(site);
-  const allOffline = site.chargePoints.every((cp) => cp.status.toLowerCase() === "offline");
+function flattenGuns(site: StationCardSite): GunOption[] {
+  return site.chargePoints.flatMap((cp) =>
+    cp.connectors.map((c) => ({
+      connectorId: c.id,
+      connectorNum: c.connectorNum,
+      status: c.status,
+      maxKw: cp.maxKw,
+    }))
+  );
+}
+
+export function StationCard({
+  site,
+  selected = false,
+  onSelect,
+}: {
+  site: StationCardSite;
+  selected?: boolean;
+  onSelect?: (siteId: string) => void;
+}) {
+  const guns = flattenGuns(site);
+  const availableGuns = guns.filter((g) => isAvailable(g.status));
+  const [open, setOpen] = useState(selected);
+
+  useEffect(() => {
+    if (selected) setOpen(true);
+  }, [selected]);
+
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next) onSelect?.(site.id);
+  }
 
   return (
-    <Card className="flex flex-col gap-0 p-0 overflow-hidden">
-      <div className="border-b border-surface-border px-5 py-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-bold tracking-tight text-surface-ink">{site.name}</h3>
-            <p className="mt-1 flex items-center gap-1 text-sm text-surface-ink-muted">
-              <LocationIcon />
-              {site.address}
-            </p>
+    <Card
+      id={`station-${site.id}`}
+      className={cn(
+        "overflow-hidden p-0 transition-all duration-200",
+        selected && "ring-2 ring-brand-amber shadow-md"
+      )}
+    >
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex w-full items-start gap-2.5 px-3 py-3 text-left sm:gap-3 sm:px-4 sm:py-3.5"
+        aria-expanded={open}
+      >
+        <Chevron open={open} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-sm font-bold leading-snug text-surface-ink sm:text-base">
+              {site.name}
+            </h3>
+            <span className="shrink-0 font-mono text-sm font-bold text-surface-ink sm:text-base">
+              {site.tariffLkrPerKwh}
+              <span className="ml-0.5 text-[10px] font-normal text-surface-ink-muted">/kWh</span>
+            </span>
           </div>
-          <div className="text-right">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-surface-ink-muted">
-              Rate
+          <p className="mt-0.5 line-clamp-1 text-xs text-surface-ink-muted sm:text-sm">
+            {site.address}
+          </p>
+          {!open && (
+            <p className="mt-1.5 text-xs font-medium text-brand-teal">
+              {availableGuns.length > 0
+                ? availableGuns.length === 1
+                  ? "1 charger ready — expand or start below"
+                  : `${availableGuns.length} chargers ready — tap to pick`
+                : "No chargers available"}
             </p>
-            <p className="font-mono text-lg font-semibold text-surface-ink">
-              LKR {site.tariffLkrPerKwh}
-              <span className="text-sm font-normal text-surface-ink-muted"> /kWh</span>
-            </p>
-          </div>
+          )}
         </div>
-      </div>
+      </button>
 
-      <div className="space-y-0 bg-surface-bg/60">
-        {site.chargePoints.map((cp) => (
-          <div
-            key={cp.id}
-            className="border-b border-surface-border px-5 py-3 last:border-b-0"
+      {!open && availableGuns.length === 1 && (
+        <div className="border-t border-surface-border px-3 pb-3 sm:px-4">
+          <Link
+            href={`/charge/${availableGuns[0].connectorId}`}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-teal py-3 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-brand-teal/90 sm:text-sm"
           >
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-mono text-xs font-medium text-surface-ink">{cp.ocppId}</span>
-              <StatusBadge status={cp.status} />
-            </div>
-            <div className="grid grid-cols-3 gap-2 divide-x divide-surface-border text-center">
-              <DataCol label="Model" value={cp.model} />
-              <DataCol label="Power" value={`${cp.maxKw}kW`} mono />
-              <DataCol
-                label="Gun"
-                value={
-                  cp.connectors.length
-                    ? `Gun ${cp.connectors[0].connectorNum} — ${cp.connectors[0].status}`
-                    : "—"
-                }
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="p-4">
-        {connectorId && !allOffline ? (
-          <Link href={`/charge/${connectorId}`} className="block w-full">
-            <Button className="w-full" type="button">
-              START CHARGE &gt;
-            </Button>
+            Start — Gun {availableGuns[0].connectorNum}
           </Link>
-        ) : (
-          <Button className="w-full" disabled type="button">
-            START CHARGE &gt;
-          </Button>
-        )}
-      </div>
+        </div>
+      )}
+
+      {open && (
+        <div className="border-t border-surface-border bg-surface-bg/50 px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
+          <GunPicker guns={guns} onCollapse={toggle} />
+        </div>
+      )}
     </Card>
   );
 }
 
-function DataCol({
-  label,
-  value,
-  mono,
+/** Compact responsive picker: 2-col grid on phone/tablet, horizontal scroll if many guns */
+function GunPicker({
+  guns,
+  onCollapse,
 }: {
-  label: string;
-  value: string;
-  mono?: boolean;
+  guns: GunOption[];
+  onCollapse: () => void;
 }) {
+  const available = guns.filter((g) => isAvailable(g.status));
+  const unavailable = guns.filter((g) => !isAvailable(g.status));
+  const sorted = [...available, ...unavailable];
+  const useHorizontalScroll = sorted.length > 4;
+
   return (
-    <div className="px-1">
-      <p className="text-[9px] font-semibold uppercase tracking-wider text-surface-ink-muted">
-        {label}
-      </p>
-      <p className={cn("mt-0.5 text-xs text-surface-ink", mono && "font-mono font-medium")}>
-        {value}
-      </p>
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-brand-teal">
+          {available.length > 0
+            ? `${available.length} available — tap a tile`
+            : "All chargers busy or offline"}
+        </p>
+        <button
+          type="button"
+          onClick={onCollapse}
+          className="shrink-0 text-[11px] font-medium text-surface-ink-muted underline-offset-2 hover:text-brand-teal hover:underline"
+        >
+          Close
+        </button>
+      </div>
+
+      <div
+        className={cn(
+          useHorizontalScroll
+            ? "flex gap-2 overflow-x-auto overscroll-x-contain pb-1 snap-x snap-mandatory [-webkit-overflow-scrolling:touch]"
+            : "grid grid-cols-2 gap-2 sm:grid-cols-2",
+          !useHorizontalScroll &&
+            sorted.length > 4 &&
+            "max-h-[min(220px,40vh)] overflow-y-auto overscroll-contain"
+        )}
+      >
+        {sorted.map((gun) => (
+          <GunTile key={gun.connectorId} gun={gun} scroll={useHorizontalScroll} />
+        ))}
+      </div>
     </div>
   );
 }
 
-function LocationIcon() {
+function GunTile({ gun, scroll }: { gun: GunOption; scroll?: boolean }) {
+  const available = isAvailable(gun.status);
+
+  const tileClass = cn(
+    "flex flex-col rounded-xl border-2 p-2.5 transition-all duration-150 sm:p-3",
+    scroll && "w-[calc(50%-0.25rem)] min-w-[7.75rem] shrink-0 snap-start sm:w-36",
+    !scroll && "min-h-[5.25rem]",
+    available
+      ? "border-brand-teal bg-white shadow-sm hover:border-brand-teal hover:bg-brand-teal hover:shadow-md active:scale-[0.98] [&:hover_p]:text-white [&:hover_span]:text-white/90"
+      : "cursor-default border-surface-border bg-surface-bg/80 opacity-55"
+  );
+
+  const content = (
+    <>
+      <div className="flex items-center justify-between gap-1">
+        <span
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded-md text-sm font-bold sm:h-8 sm:w-8",
+            available ? "bg-brand-teal text-white" : "bg-surface-border text-surface-ink-muted"
+          )}
+        >
+          {gun.connectorNum}
+        </span>
+        {available ? (
+          <span className="text-[10px] font-bold uppercase tracking-wide text-brand-teal">Start</span>
+        ) : (
+          <span className="text-[9px] font-mono uppercase text-surface-ink-muted">{gun.status}</span>
+        )}
+      </div>
+      <p
+        className={cn(
+          "mt-2 text-sm font-semibold leading-none",
+          available ? "text-surface-ink" : "text-surface-ink-muted"
+        )}
+      >
+        Gun {gun.connectorNum}
+      </p>
+      <p
+        className={cn(
+          "mt-0.5 font-mono text-[11px]",
+          available ? "text-surface-ink-muted" : "text-surface-ink-muted/80"
+        )}
+      >
+        {gun.maxKw}kW
+      </p>
+    </>
+  );
+
+  if (available) {
+    return (
+      <Link href={`/charge/${gun.connectorId}`} className={tileClass} aria-label={`Start charging gun ${gun.connectorNum}`}>
+        {content}
+      </Link>
+    );
+  }
+
   return (
-    <svg className="inline shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"
-        fill="currentColor"
-      />
+    <div className={tileClass} aria-disabled title={`Gun ${gun.connectorNum} is ${gun.status}`}>
+      {content}
+    </div>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={cn(
+        "mt-0.5 h-4 w-4 shrink-0 text-brand-teal transition-transform sm:h-5 sm:w-5",
+        open && "rotate-90"
+      )}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }

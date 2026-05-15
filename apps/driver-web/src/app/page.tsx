@@ -21,6 +21,15 @@ export default function HomePage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+
+  function selectSite(siteId: string) {
+    setSelectedSiteId(siteId);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`station-${siteId}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
 
   useEffect(() => {
     api<Site[]>("/sites")
@@ -123,16 +132,27 @@ export default function HomePage() {
         </div>
       </section>
 
-      <main className="mx-auto grid max-w-[1400px] gap-6 px-4 py-6 md:grid-cols-[1.2fr_1fr] md:px-6 md:py-8">
-        <div className="min-h-[480px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <StationMap sites={filtered} />
+      <main className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4 px-4 py-4 sm:gap-6 sm:py-6 md:grid-cols-2 md:px-6 lg:grid-cols-[1fr_minmax(360px,400px)] lg:gap-6">
+        <div className="order-2 min-h-[280px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm sm:min-h-[360px] md:order-1 md:min-h-[420px] lg:min-h-[520px]">
+          <StationMap
+            sites={filtered}
+            selectedSiteId={selectedSiteId}
+            onSelectSite={selectSite}
+          />
         </div>
 
-        <div className="flex max-h-[calc(100vh-280px)] flex-col gap-4 overflow-y-auto pr-1">
+        <div className="order-1 flex flex-col gap-2 sm:gap-3 md:order-2 md:max-h-[calc(100vh-200px)] md:overflow-y-auto md:pr-1">
           {filtered.length === 0 ? (
             <p className="text-center text-sm text-surface-ink-muted">No stations match your search.</p>
           ) : (
-            filtered.map((site) => <StationCard key={site.id} site={site} />)
+            filtered.map((site) => (
+              <StationCard
+                key={site.id}
+                site={site}
+                selected={selectedSiteId === site.id}
+                onSelect={selectSite}
+              />
+            ))
           )}
         </div>
       </main>
