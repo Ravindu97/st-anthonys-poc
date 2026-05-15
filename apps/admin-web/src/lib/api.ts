@@ -1,8 +1,20 @@
+import type { PaginatedResponse } from "@st-anthonys/shared";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("admin_token");
+}
+
+export function buildQuery(params: Record<string, string | number | boolean | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === "") continue;
+    search.set(key, String(value));
+  }
+  const q = search.toString();
+  return q ? `?${q}` : "";
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -22,6 +34,32 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     throw new Error((err as { error?: string }).error ?? "Request failed");
   }
   return res.json() as Promise<T>;
+}
+
+export async function apiPaginated<T>(
+  path: string,
+  params: Record<string, string | number | boolean | undefined>
+): Promise<PaginatedResponse<T>> {
+  return api<PaginatedResponse<T>>(`${path}${buildQuery(params)}`);
+}
+
+export async function downloadCsv(
+  path: string,
+  params: Record<string, string | number | boolean | undefined>,
+  filename: string
+): Promise<void> {
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const res = await fetch(`${API_URL}${path}${buildQuery(params)}`, { headers });
+  if (!res.ok) throw new Error("Export failed");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export function subscribeEvents(onEvent: (channel: string, data: unknown) => void) {

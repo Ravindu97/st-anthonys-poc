@@ -8,10 +8,12 @@
     "start": "next start -p 3003"
   },
   "dependencies": {
+    "@st-anthonys/shared": "workspace:*",
     "@st-anthonys/ui": "workspace:*",
     "next": "^15.3.3",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "recharts": "^2.15.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.8",

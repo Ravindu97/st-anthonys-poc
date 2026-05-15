@@ -20,6 +20,9 @@ importers:
 
   apps/admin-web:
     dependencies:
+      '@st-anthonys/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@st-anthonys/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -32,6 +35,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.2.6(react@19.2.6)
+      recharts:
+        specifier: ^2.15.3
+        version: 2.15.4(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.1.8

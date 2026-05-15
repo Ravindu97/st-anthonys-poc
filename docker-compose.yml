@@ -126,7 +126,7 @@ services:
 
   admin-web:
     <<: *app-build
-    command: ["pnpm", "--filter", "@st-anthonys/admin-web", "dev"]
+    command: ["sh", "-c", "rm -rf apps/admin-web/.next && pnpm --filter @st-anthonys/admin-web dev"]
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
     ports:

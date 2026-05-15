@@ -461,6 +461,42 @@ export $(grep -v '^#' .env | xargs)
 cd packages/database && pnpm seed
 ```
 
+## Admin dashboard API
+
+All routes require `Authorization: Bearer <admin_jwt>` from `POST /auth/login` (role `ADMIN`).
+
+### List endpoints (pagination, filters, sort)
+
+| Route | Query params |
+|-------|----------------|
+| `GET /admin/sessions` | `page`, `pageSize` (max 100), `status`, `siteId`, `city`, `search`, `from`, `to`, `offlineOnly`, `sortBy`, `sortOrder` |
+| `GET /admin/charge-points` | `page`, `pageSize`, `status`, `siteId`, `city`, `search`, `staleOnly`, `sortBy`, `sortOrder` |
+| `GET /admin/hubs` | `city`, `minUtilization`, `sortBy`, `sortOrder` |
+| `GET /admin/sites` | _(none)_ — filter dropdown options |
+
+Paginated responses: `{ items, total, page, pageSize }`.
+
+### Export & analytics
+
+| Route | Description |
+|-------|-------------|
+| `GET /admin/sessions/export` | CSV with same filters as sessions list (no pagination) |
+| `GET /admin/overview?from=&to=` | KPIs for date range (defaults to today) |
+| `GET /admin/analytics/trends?from=&to=` | Daily kWh, revenue, session counts |
+| `GET /admin/analytics/fleet?from=&to=` | Fleet snapshot by city, connector counts, offline/failed sessions |
+
+### Admin web routes
+
+| Path | Features |
+|------|----------|
+| `/` | Date-range KPIs, trend charts, fleet snapshot, hub utilization chart |
+| `/sessions` | Search, filters, sort, pagination, CSV export, row → detail |
+| `/sessions/[id]` | Session summary, meter-value charts, stop active session |
+| `/charge-points` | Filters, stale heartbeat, pagination, connector summary, reset |
+| `/hubs` | Card/table view, city & min-utilization filters, sortable utilization |
+
+Filter state is stored in URL query params (bookmarkable).
+
 ## Building for verification
 
 ```bash
