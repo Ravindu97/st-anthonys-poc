@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "./BrandLogo";
 import { cn } from "../lib/cn";
@@ -74,6 +74,7 @@ function NavLinks({
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -96,6 +97,7 @@ export function AdminSidebar() {
       localStorage.removeItem("admin_token");
     }
     closeMenu();
+    router.replace("/login");
   }
 
   return (
@@ -157,13 +159,13 @@ export function AdminSidebar() {
           <NavLinks pathname={pathname} onNavigate={closeMenu} />
         </nav>
 
-        <Link
-          href="/login"
-          className="mt-4 rounded-md border border-white/30 px-3 py-2.5 text-center text-sm text-white/90 hover:bg-white/10"
+        <button
+          type="button"
+          className="mt-4 w-full rounded-md border border-white/30 px-3 py-2.5 text-center text-sm text-white/90 hover:bg-white/10"
           onClick={handleSignOut}
         >
           Sign out
-        </Link>
+        </button>
       </aside>
     </>
   );
