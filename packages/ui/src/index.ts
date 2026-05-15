@@ -2,9 +2,14 @@ export { Button } from "./components/Button";
 export { Card } from "./components/Card";
 export { StatusBadge } from "./components/StatusBadge";
 export { BrandLogo } from "./components/BrandLogo";
-export { AppHeader } from "./components/AppHeader";
+export { AppHeader, type AppHeaderUser } from "./components/AppHeader";
 export { AppFooter } from "./components/AppFooter";
-export { StationCard, type StationCardSite, type StationCardChargePoint } from "./components/StationCard";
+export {
+  StationCard,
+  type StationCardSite,
+  type StationCardChargePoint,
+  type UserConnectorSession,
+} from "./components/StationCard";
 export { AdminSidebar } from "./components/AdminSidebar";
 export {
   DataTable,

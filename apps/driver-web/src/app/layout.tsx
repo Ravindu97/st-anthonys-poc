@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { AppHeader, AppFooter } from "@st-anthonys/ui";
+import { DriverShell } from "@/components/DriverShell";
 import "./globals.css";
 
 const inter = Inter({
@@ -24,9 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="flex min-h-screen flex-col font-sans antialiased">
-        <AppHeader />
-        <div className="flex-1">{children}</div>
-        <AppFooter />
+        <DriverShell>{children}</DriverShell>
       </body>
     </html>
   );

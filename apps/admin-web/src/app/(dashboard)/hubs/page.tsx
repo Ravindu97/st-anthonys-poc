@@ -79,6 +79,16 @@ function HubsContent() {
       >
         Hub load balancing
       </PageTitle>
+      <Card className="mb-4 border-brand-teal/20 bg-brand-teal/5 p-4">
+        <p className="text-sm text-surface-ink">
+          <strong>Live load</strong> updates when drivers are actively charging. Fleet stats (charge points,
+          connectors) update from the network. To see utilization move, start a session on the{" "}
+          <a href="http://localhost:3000" className="text-brand-teal underline" target="_blank" rel="noreferrer">
+            driver app
+          </a>
+          .
+        </p>
+      </Card>
       <Card className="mb-4 p-4">
         <FilterBar>
           <Select
@@ -122,12 +132,40 @@ function HubsContent() {
           {hubs.map((hub) => (
             <Card key={hub.id}>
               <h3 className="text-lg font-bold tracking-tight">{hub.siteName}</h3>
-              <p className="text-sm text-surface-ink-muted">
-                {hub.city} · {hub.activeSessions} active session(s)
-              </p>
-              <p className="mt-2 font-mono text-sm">
-                {hub.allocatedKw.toFixed(0)} / {hub.maxHubKw} kW ({hub.utilizationPercent}%)
-              </p>
+              <p className="text-sm text-surface-ink-muted">{hub.city}</p>
+              <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-surface-ink-muted">
+                    Fleet
+                  </p>
+                  <p className="mt-1 font-medium">
+                    {hub.chargePointCount} CPs ({hub.onlineChargePoints} online)
+                  </p>
+                  <p className="text-surface-ink-muted">
+                    {hub.connectorsOccupied}/{hub.connectorCount} connectors occupied
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-surface-ink-muted">
+                    Live load
+                  </p>
+                  <p className="mt-1 font-mono font-medium">
+                    {hub.allocatedKw.toFixed(0)} / {hub.maxHubKw} kW
+                  </p>
+                  <p className="text-surface-ink-muted">
+                    {hub.activeSessions} active session(s) · {hub.utilizationPercent}%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-surface-ink-muted">
+                    Headroom
+                  </p>
+                  <p className="mt-1 font-mono font-medium">{hub.headroomKw} kW available</p>
+                  {hub.activeSessions === 0 && (
+                    <p className="text-surface-ink-muted">Idle — no active charging</p>
+                  )}
+                </div>
+              </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-border">
                 <div
                   className="h-full rounded-full bg-brand-teal transition-all duration-300"
@@ -143,29 +181,30 @@ function HubsContent() {
             <DataTableHead>
               <SortableTableHead label="Site" sortKey="siteName" currentSortBy={sortBy} currentSortOrder={sortOrder} onSort={handleSort} />
               <DataTableTh>City</DataTableTh>
-              <DataTableTh>Active sessions</DataTableTh>
+              <DataTableTh>CPs online</DataTableTh>
+              <DataTableTh>Connectors</DataTableTh>
+              <DataTableTh>Active</DataTableTh>
               <SortableTableHead label="Allocated kW" sortKey="allocatedKw" currentSortBy={sortBy} currentSortOrder={sortOrder} onSort={handleSort} />
               <SortableTableHead label="Utilization" sortKey="utilizationPercent" currentSortBy={sortBy} currentSortOrder={sortOrder} onSort={handleSort} />
-              <DataTableTh>Load</DataTableTh>
+              <DataTableTh>Headroom</DataTableTh>
             </DataTableHead>
             <DataTableBody>
               {hubs.map((hub) => (
                 <tr key={hub.id}>
                   <DataTableTd>{hub.siteName}</DataTableTd>
                   <DataTableTd>{hub.city}</DataTableTd>
+                  <DataTableTd>
+                    {hub.onlineChargePoints}/{hub.chargePointCount}
+                  </DataTableTd>
+                  <DataTableTd>
+                    {hub.connectorsOccupied}/{hub.connectorCount}
+                  </DataTableTd>
                   <DataTableTd>{hub.activeSessions}</DataTableTd>
                   <DataTableTd mono>
                     {hub.allocatedKw.toFixed(0)} / {hub.maxHubKw}
                   </DataTableTd>
                   <DataTableTd mono>{hub.utilizationPercent}%</DataTableTd>
-                  <DataTableTd>
-                    <div className="h-2 w-32 overflow-hidden rounded-full bg-surface-border">
-                      <div
-                        className="h-full rounded-full bg-brand-teal"
-                        style={{ width: `${Math.min(100, hub.utilizationPercent)}%` }}
-                      />
-                    </div>
-                  </DataTableTd>
+                  <DataTableTd mono>{hub.headroomKw} kW</DataTableTd>
                 </tr>
               ))}
             </DataTableBody>

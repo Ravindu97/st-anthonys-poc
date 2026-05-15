@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "@st-anthonys/database";
 import { LoginRequestSchema, RegisterRequestSchema } from "@st-anthonys/shared";
-import { hashPassword, signToken } from "../auth.js";
+import { getUserFromRequest, hashPassword, signToken } from "../auth.js";
 
 export async function authRoutes(app: FastifyInstance) {
   app.post("/auth/register", async (req, reply) => {
@@ -31,5 +31,16 @@ export async function authRoutes(app: FastifyInstance) {
 
     const token = await signToken({ userId: user.id, email: user.email, role: user.role });
     return { token, user: { id: user.id, email: user.email, name: user.name, role: user.role } };
+  });
+
+  app.get("/auth/me", async (req, reply) => {
+    const auth = await getUserFromRequest(req);
+    if (!auth) return reply.status(401).send({ error: "Unauthorized" });
+    const user = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { id: true, email: true, name: true, role: true },
+    });
+    if (!user) return reply.status(401).send({ error: "Unauthorized" });
+    return { user };
   });
 }

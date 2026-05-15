@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { StationCard, type StationCardSite } from "@st-anthonys/ui";
-import { api } from "@/lib/api";
+import { api, subscribeEvents } from "@/lib/api";
+import { useActiveSessions } from "@/hooks/useActiveSessions";
+import { useAuth } from "@/hooks/useAuth";
 
 const StationMap = dynamic(() => import("@/components/StationMap"), { ssr: false });
 
@@ -16,12 +20,24 @@ type Site = StationCardSite & {
 type StatusFilter = "all" | "available" | "busy" | "offline";
 
 export default function HomePage() {
+  const router = useRouter();
+  const { isLoggedIn } = useAuth();
+  const { sessions, byConnector, refresh: refreshSessions } = useActiveSessions();
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const [sessionActionLoading, setSessionActionLoading] = useState<string | null>(null);
+
+  const userSessionsByConnector = useMemo(
+    () =>
+      Object.fromEntries(
+        sessions.map((s) => [s.connectorId, { sessionId: s.sessionId, status: s.status }])
+      ),
+    [sessions]
+  );
 
   function selectSite(siteId: string) {
     setSelectedSiteId(siteId);
@@ -31,12 +47,61 @@ export default function HomePage() {
     });
   }
 
-  useEffect(() => {
-    api<Site[]>("/sites")
-      .then(setSites)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+  const loadSites = useCallback(async () => {
+    try {
+      const data = await api<Site[]>("/sites");
+      setSites(data);
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
+
+  useEffect(() => {
+    loadSites().finally(() => setLoading(false));
+  }, [loadSites]);
+
+  useEffect(() => {
+    const unsub = subscribeEvents((channel) => {
+      if (channel === "session:update" || channel === "chargepoint:update") {
+        void loadSites();
+        void refreshSessions();
+      }
+    });
+    return unsub;
+  }, [loadSites, refreshSessions]);
+
+  const handleStopSession = useCallback(
+    async (sessionId: string) => {
+      setSessionActionLoading(sessionId);
+      try {
+        await api(`/sessions/${sessionId}/stop`, { method: "POST" });
+        await refreshSessions();
+        await loadSites();
+        router.push(`/receipt/${sessionId}`);
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Failed to stop");
+      } finally {
+        setSessionActionLoading(null);
+      }
+    },
+    [loadSites, refreshSessions, router]
+  );
+
+  const handleCancelSession = useCallback(
+    async (sessionId: string) => {
+      setSessionActionLoading(sessionId);
+      try {
+        await api(`/sessions/${sessionId}/cancel`, { method: "POST" });
+        await refreshSessions();
+        await loadSites();
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Failed to cancel");
+      } finally {
+        setSessionActionLoading(null);
+      }
+    },
+    [loadSites, refreshSessions]
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -61,6 +126,8 @@ export default function HomePage() {
     });
   }, [sites, search, statusFilter]);
 
+  const primarySession = sessions[0];
+
   if (loading) {
     return (
       <main className="mx-auto max-w-[1400px] px-4 py-12 text-center text-surface-ink-muted md:px-6">
@@ -71,6 +138,61 @@ export default function HomePage() {
 
   return (
     <>
+      {isLoggedIn && primarySession && (
+        <section className="border-b border-brand-teal/30 bg-brand-teal/10">
+          <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
+            <p className="text-sm text-surface-ink">
+              <strong className="text-brand-teal">
+                {primarySession.status === "pending" ? "Starting" : "Charging"}
+              </strong>
+              {" · "}
+              {primarySession.siteName} — Gun {primarySession.connectorNum}
+              {primarySession.status === "active" && primarySession.allocatedKw != null && (
+                <span className="font-mono text-surface-ink-muted">
+                  {" "}
+                  · {primarySession.allocatedKw} kW allocated
+                </span>
+              )}
+            </p>
+            <div className="flex gap-2">
+              <Link
+                href={`/charge/${primarySession.connectorId}`}
+                className="rounded-lg bg-brand-teal px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white hover:bg-brand-teal/90"
+              >
+                View session
+              </Link>
+              {primarySession.status === "pending" ? (
+                <button
+                  type="button"
+                  disabled={sessionActionLoading === primarySession.sessionId}
+                  onClick={() => {
+                    if (window.confirm("Cancel this charging session?")) {
+                      void handleCancelSession(primarySession.sessionId);
+                    }
+                  }}
+                  className="rounded-lg border border-status-busy/40 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-status-busy hover:bg-status-busy/5 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={sessionActionLoading === primarySession.sessionId}
+                  onClick={() => {
+                    if (window.confirm("Stop charging?")) {
+                      void handleStopSession(primarySession.sessionId);
+                    }
+                  }}
+                  className="rounded-lg border border-status-busy/40 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-status-busy hover:bg-status-busy/5 disabled:opacity-50"
+                >
+                  Stop
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="border-b border-surface-border bg-surface-bg">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-4 py-6 md:px-6">
           <h1 className="text-2xl font-bold tracking-tight text-surface-ink md:text-3xl">
@@ -138,6 +260,7 @@ export default function HomePage() {
             sites={filtered}
             selectedSiteId={selectedSiteId}
             onSelectSite={selectSite}
+            userSessionsByConnector={userSessionsByConnector}
           />
         </div>
 
@@ -151,6 +274,10 @@ export default function HomePage() {
                 site={site}
                 selected={selectedSiteId === site.id}
                 onSelect={selectSite}
+                userSessionsByConnector={isLoggedIn ? userSessionsByConnector : undefined}
+                onStopSession={isLoggedIn ? handleStopSession : undefined}
+                onCancelSession={isLoggedIn ? handleCancelSession : undefined}
+                sessionActionLoading={sessionActionLoading}
               />
             ))
           )}

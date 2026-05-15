@@ -145,5 +145,10 @@ export const AdminHubSummarySchema = z.object({
   allocatedKw: z.number(),
   utilizationPercent: z.number(),
   activeSessions: z.number(),
+  chargePointCount: z.number(),
+  onlineChargePoints: z.number(),
+  connectorCount: z.number(),
+  connectorsOccupied: z.number(),
+  headroomKw: z.number(),
 });
 export type AdminHubSummary = z.infer<typeof AdminHubSummarySchema>;

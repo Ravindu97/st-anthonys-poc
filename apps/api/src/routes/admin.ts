@@ -204,10 +204,12 @@ export async function adminRoutes(app: FastifyInstance) {
     });
 
     let summaries: AdminHubSummary[] = hubs.map((hub) => {
-      const activeSessions = hub.site.chargePoints.flatMap((cp) =>
-        cp.connectors.flatMap((c) => c.sessions)
-      );
+      const chargePoints = hub.site.chargePoints;
+      const connectors = chargePoints.flatMap((cp) => cp.connectors);
+      const activeSessions = connectors.flatMap((c) => c.sessions);
       const allocatedKw = activeSessions.reduce((sum, s) => sum + (s.allocatedKw ?? 0), 0);
+      const onlineChargePoints = chargePoints.filter((cp) => cp.status !== "Offline").length;
+      const connectorsOccupied = connectors.filter((c) => c.status === "Occupied").length;
       return {
         id: hub.id,
         name: hub.name,
@@ -217,6 +219,11 @@ export async function adminRoutes(app: FastifyInstance) {
         allocatedKw,
         utilizationPercent: Math.round((allocatedKw / hub.maxHubKw) * 100),
         activeSessions: activeSessions.length,
+        chargePointCount: chargePoints.length,
+        onlineChargePoints,
+        connectorCount: connectors.length,
+        connectorsOccupied,
+        headroomKw: Math.max(0, Math.round((hub.maxHubKw - allocatedKw) * 10) / 10),
       };
     });
 
