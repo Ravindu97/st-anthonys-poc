@@ -213,6 +213,33 @@ export async function sessionRoutes(app: FastifyInstance) {
     return { sessionId: id, status: "pending" };
   });
 
+  app.get("/sessions/mine/active", async (req) => {
+    const user = await requireAuth(req);
+    await expireStalePendingSessions(user.userId);
+
+    const sessions = await prisma.session.findMany({
+      where: {
+        userId: user.userId,
+        status: { in: ["pending", "active"] },
+      },
+      include: {
+        connector: { include: { chargePoint: { include: { site: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return sessions.map((s) => ({
+      sessionId: s.id,
+      connectorId: s.connectorId,
+      status: s.status,
+      connectorNum: s.connector.connectorNum,
+      siteId: s.connector.chargePoint.siteId,
+      siteName: s.connector.chargePoint.site.name,
+      energyKwh: s.energyKwh,
+      allocatedKw: s.allocatedKw,
+    }));
+  });
+
   app.get("/sessions/active", async (req) => {
     const user = await requireAuth(req);
     await expireStalePendingSessions(user.userId);

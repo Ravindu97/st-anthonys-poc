@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Link from "next/link";
+import type { UserConnectorSession } from "@st-anthonys/ui";
 
 const saIcon = L.divIcon({
   className: "sa-map-pin",
@@ -36,10 +37,12 @@ export default function StationMap({
   sites,
   selectedSiteId,
   onSelectSite,
+  userSessionsByConnector,
 }: {
   sites: Site[];
   selectedSiteId?: string | null;
   onSelectSite?: (siteId: string) => void;
+  userSessionsByConnector?: Record<string, UserConnectorSession>;
 }) {
   const center: [number, number] =
     sites.length > 0 ? [sites[0].latitude, sites[0].longitude] : [7.5, 80.2];
@@ -53,9 +56,12 @@ export default function StationMap({
     >
       <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       {sites.map((site) => {
-        const available = site.chargePoints.flatMap((cp) =>
-          cp.connectors.filter((c) => c.status.toLowerCase() === "available")
+        const connectors = site.chargePoints.flatMap((cp) => cp.connectors);
+        const mySessions = connectors.filter((c) => userSessionsByConnector?.[c.id]);
+        const available = connectors.filter(
+          (c) => c.status.toLowerCase() === "available" && !userSessionsByConnector?.[c.id]
         );
+
         return (
           <Marker
             key={site.id}
@@ -69,6 +75,20 @@ export default function StationMap({
               <div className="min-w-[180px]">
                 <strong className="text-sm">{site.name}</strong>
                 <p className="text-xs text-gray-600">{site.city}</p>
+                {mySessions.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[10px] font-semibold uppercase text-[#006767]">Your session</p>
+                    {mySessions.map((c) => (
+                      <Link
+                        key={c.id}
+                        href={`/charge/${c.id}`}
+                        className="block rounded border-2 border-[#006767] bg-[#006767]/10 px-2 py-1.5 text-center text-xs font-semibold text-[#006767] hover:bg-[#006767]/20"
+                      >
+                        Gun {c.connectorNum} — View / manage
+                      </Link>
+                    ))}
+                  </div>
+                )}
                 {available.length > 0 ? (
                   <div className="mt-2 space-y-1">
                     <p className="text-[10px] font-semibold uppercase text-gray-500">Start charging</p>
@@ -82,9 +102,9 @@ export default function StationMap({
                       </Link>
                     ))}
                   </div>
-                ) : (
+                ) : mySessions.length === 0 ? (
                   <p className="mt-2 text-xs text-gray-500">No guns available</p>
-                )}
+                ) : null}
                 <button
                   type="button"
                   onClick={() => onSelectSite?.(site.id)}

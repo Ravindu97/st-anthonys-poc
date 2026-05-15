@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BrandLogo, Button, Card, Input } from "@st-anthonys/ui";
-import { api } from "@/lib/api";
+import { api, getToken } from "@/lib/api";
+import { setAuth } from "@/lib/auth";
+import type { AuthUser } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +16,10 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (getToken()) router.replace("/");
+  }, [router]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -21,12 +27,12 @@ export default function LoginPage() {
     try {
       const path = isRegister ? "/auth/register" : "/auth/login";
       const body = isRegister ? { email, password, name } : { email, password };
-      const res = await api<{ token: string }>(path, {
+      const res = await api<{ token: string; user: AuthUser }>(path, {
         method: "POST",
         body: JSON.stringify(body),
       });
-      localStorage.setItem("token", res.token);
-      router.push("/");
+      setAuth(res.token, res.user);
+      router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
     } finally {

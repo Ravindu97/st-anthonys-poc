@@ -5,17 +5,37 @@ import { usePathname } from "next/navigation";
 import { BrandLogo } from "./BrandLogo";
 import { cn } from "../lib/cn";
 
+export type AppHeaderUser = {
+  email: string;
+  name?: string | null;
+};
+
 type NavItem = { href: string; label: string; external?: boolean };
 
-const NAV: NavItem[] = [
+const BASE_NAV: NavItem[] = [
   { href: "/", label: "STATIONS" },
   { href: "/history", label: "HISTORY" },
-  { href: "/login", label: "MY ACCOUNT" },
   { href: "mailto:support@stanthonys.lk", label: "SUPPORT", external: true },
 ];
 
-export function AppHeader() {
+export function AppHeader({
+  user,
+  onSignOut,
+}: {
+  user?: AppHeaderUser | null;
+  onSignOut?: () => void;
+}) {
   const pathname = usePathname();
+  const accountHref = user ? "/history" : "/login";
+  const accountLabel = user ? "MY ACCOUNT" : "SIGN IN";
+
+  const nav: NavItem[] = [
+    ...BASE_NAV.slice(0, 2),
+    { href: accountHref, label: accountLabel },
+    BASE_NAV[2]!,
+  ];
+
+  const displayName = user?.name?.trim() || user?.email?.split("@")[0] || "Account";
 
   return (
     <header className="bg-brand-teal-light text-white">
@@ -25,7 +45,7 @@ export function AppHeader() {
         </Link>
 
         <nav className="flex flex-wrap items-center gap-6 md:gap-8">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active =
               !item.external &&
               (item.href === "/" ? pathname === "/" : pathname.startsWith(item.href));
@@ -48,18 +68,33 @@ export function AppHeader() {
           })}
         </nav>
 
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-2 rounded-md border-2 border-brand-amber px-4 py-2 text-xs font-semibold uppercase tracking-widest text-brand-amber transition-all duration-200 hover:bg-brand-amber/10"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4 0-7 2-7 4.5V20h14v-1.5C19 16 16 14 12 14Z"
-              fill="currentColor"
-            />
-          </svg>
-          LOGIN
-        </Link>
+        {user ? (
+          <div className="flex items-center gap-2">
+            <span className="hidden max-w-[140px] truncate text-xs text-white/90 sm:inline" title={user.email}>
+              {displayName}
+            </span>
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="inline-flex items-center gap-2 rounded-md border-2 border-white/40 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition-all duration-200 hover:border-white hover:bg-white/10"
+            >
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 rounded-md border-2 border-brand-amber px-4 py-2 text-xs font-semibold uppercase tracking-widest text-brand-amber transition-all duration-200 hover:bg-brand-amber/10"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4 0-7 2-7 4.5V20h14v-1.5C19 16 16 14 12 14Z"
+                fill="currentColor"
+              />
+            </svg>
+            Login
+          </Link>
+        )}
       </div>
     </header>
   );
