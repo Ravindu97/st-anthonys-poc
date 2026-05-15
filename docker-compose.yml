@@ -1,0 +1,127 @@
+# St. Anthony's POC — full stack. Start with: docker compose up --build
+# Stop with: docker compose down
+
+name: st-anthonys-poc
+
+x-app-build: &app-build
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql://stanthonys:stanthonys@postgres:5432/stanthonys
+  REDIS_URL: redis://redis:6379
+  JWT_SECRET: ${JWT_SECRET:-change-me-in-production-poc-only}
+  OCPP_GATEWAY_URL: http://ocpp-gateway:3002
+  API_URL: http://api:3001
+  DRIVER_WEB_URL: http://localhost:3000
+  ADMIN_WEB_URL: http://localhost:3003
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: stanthonys
+      POSTGRES_PASSWORD: stanthonys
+      POSTGRES_DB: stanthonys
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stanthonys -d stanthonys"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    <<: *app-build
+    command: ["sh", "scripts/docker-migrate.sh"]
+    environment:
+      <<: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *app-build
+    command: ["pnpm", "--filter", "@st-anthonys/api", "exec", "tsx", "src/index.ts"]
+    environment:
+      <<: *backend-env
+      API_PORT: "3001"
+    ports:
+      - "3001:3001"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - node -e "fetch('http://127.0.0.1:3001/health').then(r=>r.json()).then(j=>process.exit(j.database==='connected'?0:1)).catch(()=>process.exit(1))"
+      interval: 5s
+      timeout: 10s
+      retries: 18
+      start_period: 45s
+
+  ocpp-gateway:
+    <<: *app-build
+    command: ["pnpm", "--filter", "@st-anthonys/ocpp-gateway", "exec", "tsx", "src/index.ts"]
+    environment:
+      <<: *backend-env
+      OCPP_GATEWAY_PORT: "3002"
+    ports:
+      - "3002:3002"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  simulator:
+    <<: *app-build
+    command: ["pnpm", "--filter", "@st-anthonys/charge-point-simulator", "start"]
+    environment:
+      OCPP_GATEWAY_WS: ws://ocpp-gateway:3002
+      SIM_CHARGE_POINTS: SA-PAN-01,SA-CMB-01,SA-CMB-02,SA-KUR-01
+    depends_on:
+      ocpp-gateway:
+        condition: service_started
+    restart: unless-stopped
+
+  driver-web:
+    <<: *app-build
+    command: ["pnpm", "--filter", "@st-anthonys/driver-web", "dev"]
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  admin-web:
+    <<: *app-build
+    command: ["pnpm", "--filter", "@st-anthonys/admin-web", "dev"]
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - "3003:3003"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

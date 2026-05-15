@@ -1,0 +1,10 @@
+node_modules
+dist
+.next
+.turbo
+.env
+.env.local
+*.log
+.DS_Store
+packages/database/prisma/*.db
+tools/charge-point-simulator/offline-queue.json

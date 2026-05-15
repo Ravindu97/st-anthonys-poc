@@ -1,0 +1,27 @@
+{
+  "name": "st-anthonys-poc",
+  "private": true,
+  "scripts": {
+    "dev": "docker compose up --build",
+    "dev:down": "docker compose down",
+    "dev:logs": "docker compose logs -f",
+    "build": "turbo build",
+    "db:migrate": "pnpm --filter @st-anthonys/database migrate",
+    "db:seed": "pnpm --filter @st-anthonys/database seed",
+    "db:ensure": "docker compose up -d postgres redis && docker compose run --rm migrate",
+    "setup": "cp .env.example .env 2>/dev/null; cp .env packages/database/.env 2>/dev/null; pnpm install && pnpm db:generate",
+    "db:generate": "pnpm --filter @st-anthonys/database generate",
+    "simulator:start": "pnpm --filter @st-anthonys/charge-point-simulator start",
+    "dev:stop": "./scripts/stop-dev.sh",
+    "docker:fix": "./scripts/fix-docker.sh",
+    "docker:reset": "./scripts/docker-reset.sh"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

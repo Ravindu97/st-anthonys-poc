@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  DRIVER
+  ADMIN
+}
+
+enum ChargePointStatus {
+  Available
+  Charging
+  Faulted
+  Offline
+  Unavailable
+}
+
+enum ConnectorStatus {
+  Available
+  Occupied
+  Faulted
+  Unavailable
+}
+
+enum SessionStatus {
+  pending
+  active
+  completed
+  failed
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  sites     Site[]
+}
+
+model Hub {
+  id        String   @id @default(cuid())
+  name      String
+  maxHubKw  Float
+  siteId    String   @unique
+  site      Site     @relation(fields: [siteId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Site {
+  id            String        @id @default(cuid())
+  name          String
+  city          String
+  address       String
+  latitude      Float
+  longitude     Float
+  organizationId String
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+  hub           Hub?
+  chargePoints  ChargePoint[]
+  createdAt     DateTime      @default(now())
+}
+
+model ChargePoint {
+  id              String            @id @default(cuid())
+  ocppId          String            @unique
+  model           String
+  maxKw           Float
+  status          ChargePointStatus @default(Offline)
+  lastHeartbeat   DateTime?
+  siteId          String
+  site            Site              @relation(fields: [siteId], references: [id])
+  connectors      Connector[]
+  createdAt       DateTime          @default(now())
+}
+
+model Connector {
+  id            String          @id @default(cuid())
+  connectorNum  Int
+  status        ConnectorStatus @default(Available)
+  chargePointId String
+  chargePoint   ChargePoint     @relation(fields: [chargePointId], references: [id])
+  sessions      Session[]
+  @@unique([chargePointId, connectorNum])
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         UserRole  @default(DRIVER)
+  sessions     Session[]
+  createdAt    DateTime  @default(now())
+}
+
+model Session {
+  id                String        @id @default(cuid())
+  status            SessionStatus @default(pending)
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  connectorId       String
+  connector         Connector     @relation(fields: [connectorId], references: [id])
+  ocppTransactionId Int?
+  idTag             String?
+  startedAt         DateTime?
+  stoppedAt         DateTime?
+  energyKwh         Float         @default(0)
+  costLkr           Float         @default(0)
+  allocatedKw       Float?
+  syncedFromOffline Boolean       @default(false)
+  offlineSessionId  String?       @unique
+  meterValues       MeterValue[]
+  transaction       Transaction?
+  createdAt         DateTime      @default(now())
+}
+
+model MeterValue {
+  id           String   @id @default(cuid())
+  sessionId    String
+  session      Session  @relation(fields: [sessionId], references: [id])
+  timestamp    DateTime @default(now())
+  powerKw      Float
+  energyKwh    Float
+  socPercent   Float?
+  batteryTempC Float?
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  sessionId String   @unique
+  session   Session  @relation(fields: [sessionId], references: [id])
+  amountLkr Float
+  tariff    Float
+  receipt   Json
+  createdAt DateTime @default(now())
+}
+
+model OfflineQueue {
+  id               String   @id @default(cuid())
+  offlineSessionId String   @unique
+  payload          Json
+  synced           Boolean  @default(false)
+  createdAt        DateTime @default(now())
+}

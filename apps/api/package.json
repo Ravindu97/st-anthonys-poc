@@ -1,0 +1,23 @@
+{
+  "name": "@st-anthonys/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.0.1",
+    "@st-anthonys/database": "workspace:*",
+    "@st-anthonys/shared": "workspace:*",
+    "fastify": "^5.4.0",
+    "ioredis": "^5.6.1",
+    "jose": "^6.0.11"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}
