@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sidebar } from "@/components/Sidebar";
+import { Card, PageTitle } from "@st-anthonys/ui";
 import { api, getToken, subscribeEvents } from "@/lib/api";
 
 type Hub = {
@@ -36,24 +36,26 @@ export default function HubsPage() {
 
   return (
     <>
-      <Sidebar />
-      <main className="main">
-        <h2 style={{ marginBottom: "1rem" }}>Hub load balancing</h2>
+      <PageTitle>Hub load balancing</PageTitle>
+      <div className="space-y-4">
         {hubs.map((hub) => (
-          <div key={hub.id} className="card">
-            <h3>{hub.siteName}</h3>
-            <p style={{ fontSize: "0.875rem", color: "#666" }}>
+          <Card key={hub.id}>
+            <h3 className="text-lg font-bold tracking-tight">{hub.siteName}</h3>
+            <p className="text-sm text-surface-ink-muted">
               {hub.city} · {hub.activeSessions} active session(s)
             </p>
-            <p>
+            <p className="mt-2 font-mono text-sm">
               {hub.allocatedKw.toFixed(0)} / {hub.maxHubKw} kW ({hub.utilizationPercent}%)
             </p>
-            <div className="bar-track">
-              <div className="bar-fill" style={{ width: `${Math.min(100, hub.utilizationPercent)}%` }} />
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-border">
+              <div
+                className="h-full rounded-full bg-brand-teal transition-all duration-300"
+                style={{ width: `${Math.min(100, hub.utilizationPercent)}%` }}
+              />
             </div>
-          </div>
+          </Card>
         ))}
-      </main>
+      </div>
     </>
   );
 }

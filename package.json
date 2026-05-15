@@ -14,9 +14,11 @@
     "simulator:start": "pnpm --filter @st-anthonys/charge-point-simulator start",
     "dev:stop": "./scripts/stop-dev.sh",
     "docker:fix": "./scripts/fix-docker.sh",
-    "docker:reset": "./scripts/docker-reset.sh"
+    "docker:reset": "./scripts/docker-reset.sh",
+    "postinstall": "test -f scripts/sync-branding.sh && sh scripts/sync-branding.sh || true"
   },
   "devDependencies": {
+    "nanoid": "^5.1.11",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
   },

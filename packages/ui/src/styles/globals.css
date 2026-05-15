@@ -1,0 +1,45 @@
+@theme {
+  --color-brand-teal: #006767;
+  --color-brand-teal-light: #008282;
+  --color-brand-amber: #ffc400;
+  --color-brand-gold: #f9b200;
+
+  --color-surface-bg: #f8f9fa;
+  --color-surface-card: #ffffff;
+  --color-surface-border: #e2e8f0;
+  --color-surface-ink: #1a1a1a;
+  --color-surface-ink-muted: #64748b;
+
+  --color-status-available: #00c853;
+  --color-status-busy: #ff3d00;
+  --color-status-offline: #94a3b8;
+
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  --brand-teal: #006767;
+  --brand-amber: #ffc400;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-surface-bg);
+    color: var(--color-surface-ink);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  a {
+    text-decoration: none;
+  }
+
+  button {
+    cursor: pointer;
+    font-family: inherit;
+  }
+}

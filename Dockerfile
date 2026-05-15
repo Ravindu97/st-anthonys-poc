@@ -16,12 +16,15 @@ COPY apps/driver-web/package.json apps/driver-web/
 COPY apps/admin-web/package.json apps/admin-web/
 COPY packages/database/package.json packages/database/
 COPY packages/shared/package.json packages/shared/
+COPY packages/ui/package.json packages/ui/
 COPY packages/ocpp-messages/package.json packages/ocpp-messages/
 COPY tools/charge-point-simulator/package.json tools/charge-point-simulator/
 
-RUN pnpm install --frozen-lockfile
+# Scripts/assets are not copied yet; sync-branding runs after COPY . .
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Application source + Prisma client + compiled workspace packages (main → dist/)
 COPY . .
+RUN sh scripts/sync-branding.sh
 RUN pnpm db:generate \
   && pnpm turbo run build --filter="./packages/*"

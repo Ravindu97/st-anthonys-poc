@@ -1,5 +1,8 @@
 export const ORG_NAME = "St. Anthony's Energy";
 
+/** Public URL path for the St. Anthony's logo (served from each Next.js app's /public). */
+export const BRAND_LOGO_PATH = "/branding/sa-logo.png";
+
 export const DEFAULT_TARIFF_LKR_PER_KWH = 85;
 
 export const DEFAULT_SOC_STOP_PERCENT = 95;

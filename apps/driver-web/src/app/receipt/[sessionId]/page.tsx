@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import { Button, Card } from "@st-anthonys/ui";
 import { api, getToken } from "@/lib/api";
 
 type Session = {
@@ -34,43 +36,58 @@ export default function ReceiptPage() {
     api<Session>(`/sessions/${sessionId}`).then(setSession).catch(console.error);
   }, [sessionId]);
 
-  if (!session) return <main className="container">Loading receipt…</main>;
+  if (!session) {
+    return (
+      <main className="mx-auto max-w-md px-4 py-12 text-center text-surface-ink-muted">
+        Loading receipt…
+      </main>
+    );
+  }
 
   const receipt = session.transaction?.receipt;
 
   return (
-    <main className="container">
-      <div className="card" style={{ textAlign: "center" }}>
-        <h2>Receipt</h2>
-        <p style={{ color: "var(--sa-green)", fontSize: "2rem", fontWeight: 700 }}>
+    <main className="mx-auto max-w-md px-4 py-12">
+      <Card className="text-center">
+        <h2 className="text-xl font-bold tracking-tight">Receipt</h2>
+        <p className="mt-4 font-mono text-4xl font-bold text-brand-teal">
           LKR {session.costLkr.toFixed(0)}
         </p>
-        <p>St. Anthony&apos;s Energy</p>
-        <hr style={{ margin: "1rem 0", border: "none", borderTop: "1px solid var(--sa-border)" }} />
-        <p>
-          <strong>{session.connector.chargePoint.ocppId}</strong> · Gun {session.connector.connectorNum}
+        <p className="mt-1 text-sm text-surface-ink-muted">St. Anthony&apos;s Energy</p>
+        <hr className="my-6 border-surface-border" />
+        <p className="font-mono text-sm">
+          <strong>{session.connector.chargePoint.ocppId}</strong> · Gun{" "}
+          {session.connector.connectorNum}
         </p>
-        <p>{session.energyKwh.toFixed(2)} kWh delivered</p>
-        <p style={{ fontSize: "0.875rem", color: "#666" }}>
+        <p className="mt-2 font-mono text-sm text-surface-ink">
+          {session.energyKwh.toFixed(2)} kWh delivered
+        </p>
+        <p className="mt-2 font-mono text-xs text-surface-ink-muted">
           {session.startedAt && new Date(session.startedAt).toLocaleString()} —{" "}
           {session.stoppedAt && new Date(session.stoppedAt).toLocaleString()}
         </p>
         {receipt && (
-          <p style={{ fontSize: "0.875rem" }}>
+          <p className="mt-3 text-sm text-surface-ink-muted">
             Paid via {receipt.paymentMethod}
-            {receipt.note && <br />}
-            {receipt.note}
+            {receipt.note && (
+              <>
+                <br />
+                {receipt.note}
+              </>
+            )}
           </p>
         )}
         {session.syncedFromOffline && (
-          <p className="badge" style={{ marginTop: "1rem" }}>
+          <span className="mt-4 inline-block rounded bg-brand-teal/10 px-2 py-0.5 font-mono text-[10px] uppercase text-brand-teal">
             Synced from offline buffer
-          </p>
+          </span>
         )}
-        <a href="/" className="btn btn-primary" style={{ marginTop: "1.5rem", display: "inline-block" }}>
-          Back to stations
-        </a>
-      </div>
+        <Link href="/" className="mt-8 block">
+          <Button className="w-full" type="button">
+            Back to stations
+          </Button>
+        </Link>
+      </Card>
     </main>
   );
 }
