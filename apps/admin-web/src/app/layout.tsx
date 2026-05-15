@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   description: "Operations dashboard — St. Anthony's Charge Network",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>

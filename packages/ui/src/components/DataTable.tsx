@@ -8,8 +8,8 @@ export function DataTable({
   className?: string;
 }) {
   return (
-    <div className={cn("overflow-x-auto", className)}>
-      <table className="w-full border-collapse text-sm">{children}</table>
+    <div className={cn("-mx-px overflow-x-auto overscroll-x-contain", className)}>
+      <table className="w-full min-w-[640px] border-collapse text-sm">{children}</table>
     </div>
   );
 }
@@ -35,7 +35,7 @@ export function DataTableTh({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <th className={cn("px-3 py-3 font-semibold", className)}>{children}</th>;
+  return <th className={cn("whitespace-nowrap px-2 py-2.5 font-semibold sm:px-3 sm:py-3", className)}>{children}</th>;
 }
 
 export function DataTableTd({
@@ -48,7 +48,7 @@ export function DataTableTd({
   mono?: boolean;
 }) {
   return (
-    <td className={cn("px-3 py-3 text-surface-ink", mono && "font-mono text-xs", className)}>
+    <td className={cn("px-2 py-2.5 text-surface-ink sm:px-3 sm:py-3", mono && "font-mono text-xs", className)}>
       {children}
     </td>
   );
