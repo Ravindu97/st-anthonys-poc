@@ -27,7 +27,15 @@ async function main() {
     return reply.status(500).send({ error: err.message || "Internal Server Error" });
   });
 
-  await app.register(cors, { origin: true });
+  await app.register(cors, {
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:3003",
+      /^http:\/\/127\.0\.0\.1:300[03]$/,
+      /^http:\/\/192\.168\.\d+\.\d+:300[03]$/,
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  });
 
   await app.register(authRoutes);
   await app.register(siteRoutes);

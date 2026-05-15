@@ -2,13 +2,28 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "@st-anthonys/database";
 import { DEFAULT_TARIFF_LKR_PER_KWH, StartSessionRequestSchema } from "@st-anthonys/shared";
 import { requireAuth } from "../auth.js";
-import { remoteStart, remoteStop } from "../ocpp-client.js";
+import { listConnectedChargePoints, remoteStart, remoteStop } from "../ocpp-client.js";
+import { remoteStartWithRetry } from "../remote-start-retry.js";
 import { rebalanceHub } from "../load-balancer.js";
+
+const PENDING_TIMEOUT_MS = 90_000;
+
+async function expireStalePendingSessions(userId: string) {
+  await prisma.session.updateMany({
+    where: {
+      userId,
+      status: "pending",
+      createdAt: { lt: new Date(Date.now() - PENDING_TIMEOUT_MS) },
+    },
+    data: { status: "failed" },
+  });
+}
 
 export async function sessionRoutes(app: FastifyInstance) {
   app.post("/sessions/start", async (req, reply) => {
     const user = await requireAuth(req);
     const { connectorId } = StartSessionRequestSchema.parse(req.body);
+    await expireStalePendingSessions(user.userId);
 
     const connector = await prisma.connector.findUnique({
       where: { id: connectorId },
@@ -25,8 +40,31 @@ export async function sessionRoutes(app: FastifyInstance) {
     if (connector.chargePoint.status === "Offline") {
       return reply.status(400).send({ error: "Charge point is offline" });
     }
-    if (connector.sessions.length > 0) {
+    const existingPending = connector.sessions.find((s) => s.status === "pending");
+    const existingActive = connector.sessions.find((s) => s.status === "active");
+    if (existingActive) {
       return reply.status(400).send({ error: "Connector already has an active session" });
+    }
+
+    if (existingPending) {
+      console.log(`[sessions] retry pending ${existingPending.id} on ${connector.chargePoint.ocppId}`);
+      const retried = await remoteStartWithRetry(
+        connector.chargePoint.ocppId,
+        connector.connectorNum,
+        existingPending.idTag ?? `TAG-${user.email}`
+      );
+      if (!retried.success) {
+        const online = await listConnectedChargePoints();
+        console.warn(`[sessions] retry failed:`, retried.reason, `online=[${online.join(", ")}]`);
+        await prisma.session.update({
+          where: { id: existingPending.id },
+          data: { status: "failed" },
+        });
+        return reply.status(503).send({
+          error: `Charge point did not respond: ${retried.reason}. Connected: ${online.join(", ") || "none"}`,
+        });
+      }
+      return { sessionId: existingPending.id, status: "pending" };
     }
 
     const session = await prisma.session.create({
@@ -38,24 +76,26 @@ export async function sessionRoutes(app: FastifyInstance) {
       },
     });
 
-    let started = false;
-    try {
-      started = await remoteStart(
+    console.log(
+      `[sessions] start sessionId=${session.id} cp=${connector.chargePoint.ocppId} gun=${connector.connectorNum} cpStatus=${connector.chargePoint.status}`
+    );
+
+    // Return immediately — remote start runs in background (avoids 15s+ UI hang on "Starting...")
+    void (async () => {
+      const started = await remoteStartWithRetry(
         connector.chargePoint.ocppId,
         connector.connectorNum,
         `TAG-${user.email}`
       );
-    } catch {
-      started = false;
-    }
-
-    if (!started) {
-      await prisma.session.update({ where: { id: session.id }, data: { status: "failed" } });
-      return reply.status(503).send({ error: "Could not reach charge point — ensure OCPP gateway and simulator are running" });
-    }
-
-    await prisma.connector.update({ where: { id: connectorId }, data: { status: "Occupied" } });
-    await rebalanceHub(connector.chargePoint.siteId);
+      if (!started.success) {
+        console.warn(`[sessions] background start failed for ${session.id}:`, started.reason);
+        await prisma.session.update({ where: { id: session.id }, data: { status: "failed" } });
+        return;
+      }
+      await prisma.connector.update({ where: { id: connectorId }, data: { status: "Occupied" } });
+      await rebalanceHub(connector.chargePoint.siteId);
+      console.log(`[sessions] background remoteStart ok for ${session.id}`);
+    })();
 
     return { sessionId: session.id, status: "pending" };
   });
@@ -126,17 +166,100 @@ export async function sessionRoutes(app: FastifyInstance) {
     return updated;
   });
 
+  app.post("/sessions/:id/cancel", async (req, reply) => {
+    const user = await requireAuth(req);
+    const { id } = req.params as { id: string };
+    const session = await prisma.session.findUnique({
+      where: { id },
+      include: { connector: true },
+    });
+    if (!session) return reply.status(404).send({ error: "Session not found" });
+    if (session.userId !== user.userId) return reply.status(403).send({ error: "Forbidden" });
+    if (session.status !== "pending") {
+      return reply.status(400).send({ error: "Only pending sessions can be cancelled" });
+    }
+    await prisma.session.update({ where: { id }, data: { status: "failed" } });
+    await prisma.connector.update({
+      where: { id: session.connectorId },
+      data: { status: "Available" },
+    });
+    return { ok: true };
+  });
+
+  app.post("/sessions/:id/retry", async (req, reply) => {
+    const user = await requireAuth(req);
+    const { id } = req.params as { id: string };
+    const session = await prisma.session.findUnique({
+      where: { id },
+      include: { connector: { include: { chargePoint: true } } },
+    });
+    if (!session) return reply.status(404).send({ error: "Session not found" });
+    if (session.userId !== user.userId) return reply.status(403).send({ error: "Forbidden" });
+    if (session.status !== "pending") {
+      return reply.status(400).send({ error: "Only pending sessions can be retried" });
+    }
+    const result = await remoteStartWithRetry(
+      session.connector.chargePoint.ocppId,
+      session.connector.connectorNum,
+      session.idTag ?? `TAG-${user.email}`
+    );
+    console.log(`[sessions] POST /sessions/${id}/retry:`, result);
+    if (!result.success) {
+      const online = await listConnectedChargePoints();
+      return reply.status(503).send({
+        error: `${result.reason}. Connected: ${online.join(", ") || "none"}`,
+      });
+    }
+    return { sessionId: id, status: "pending" };
+  });
+
   app.get("/sessions/active", async (req) => {
     const user = await requireAuth(req);
-    const session = await prisma.session.findFirst({
-      where: { userId: user.userId, status: { in: ["pending", "active"] } },
-      include: {
-        connector: { include: { chargePoint: { include: { site: true } } } },
-        meterValues: { orderBy: { timestamp: "desc" }, take: 60 },
-        transaction: true,
+    await expireStalePendingSessions(user.userId);
+    const { connectorId } = req.query as { connectorId?: string };
+
+    const include = {
+      connector: { include: { chargePoint: { include: { site: true } } } },
+      meterValues: { orderBy: { timestamp: "desc" as const }, take: 60 },
+      transaction: true,
+    };
+
+    let session = await prisma.session.findFirst({
+      where: {
+        userId: user.userId,
+        status: { in: ["pending", "active"] },
+        ...(connectorId ? { connectorId } : {}),
       },
+      include,
       orderBy: { createdAt: "desc" },
     });
+
+    // Nudge stuck pending sessions (charge point may have missed the first remote start)
+    if (session?.status === "pending") {
+      const ageMs = Date.now() - session.createdAt.getTime();
+      if (ageMs > 3_000) {
+        const result = await remoteStartWithRetry(
+          session.connector.chargePoint.ocppId,
+          session.connector.connectorNum,
+          session.idTag ?? `TAG-${user.email}`
+        );
+        console.log(`[sessions] auto-retry pending ${session.id}:`, result);
+        if (result.success) {
+          await new Promise((r) => setTimeout(r, 800));
+          session = await prisma.session.findFirst({
+            where: { id: session.id },
+            include,
+          });
+        } else if (ageMs > 30_000) {
+          await prisma.session.update({
+            where: { id: session.id },
+            data: { status: "failed" },
+          });
+          return null;
+        }
+      }
+    }
+
     return session;
   });
 

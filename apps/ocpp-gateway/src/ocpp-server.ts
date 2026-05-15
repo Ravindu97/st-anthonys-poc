@@ -12,6 +12,7 @@ import {
 import { DEFAULT_SOC_STOP_PERCENT, HEARTBEAT_TIMEOUT_MS, REDIS_CHANNELS } from "@st-anthonys/shared";
 import {
   type ChargePointConnection,
+  getAllConnections,
   getConnection,
   registerConnection,
   removeConnection,
@@ -40,6 +41,7 @@ export function setupOcppWebSocket(wss: WebSocketServer) {
       pendingCalls: new Map(),
     };
     registerConnection(ocppId, conn);
+    console.log(`[ocpp] WebSocket connected: ${ocppId} (online: ${getAllConnections().join(", ")})`);
 
     void prisma.chargePoint
       .updateMany({
@@ -52,6 +54,7 @@ export function setupOcppWebSocket(wss: WebSocketServer) {
     ws.on("message", (data) => void handleMessage(conn, data.toString()));
     ws.on("close", () => {
       removeConnection(ocppId);
+      console.log(`[ocpp] WebSocket disconnected: ${ocppId} (online: ${getAllConnections().join(", ") || "none"})`);
       void prisma.chargePoint
         .updateMany({ where: { ocppId }, data: { status: "Offline" } })
         .then(() => publishChargePointUpdate({ ocppId, status: "Offline" }))
@@ -197,7 +200,14 @@ async function handleCall(
             startedAt: new Date(),
           },
         });
+        console.log(
+          `[ocpp] StartTransaction ${ocppId} gun ${connectorId}: session ${session.id} → active tx=${transactionId}`
+        );
         publishSessionUpdate({ sessionId: session.id, status: "active" });
+      } else {
+        console.warn(
+          `[ocpp] StartTransaction ${ocppId} gun ${connectorId}: no pending/active session in DB (tx=${transactionId} still created on CP)`
+        );
       }
 
       return { transactionId, idTagInfo: { status: "Accepted" } };
@@ -332,20 +342,56 @@ async function completeSession(sessionId: string, energyKwh: number) {
   return session;
 }
 
+export type RemoteStartResult = { success: boolean; reason: string };
+
 export async function sendRemoteStart(
   ocppId: string,
   connectorId: number,
   idTag: string
-): Promise<boolean> {
+): Promise<RemoteStartResult> {
+  const connected = getAllConnections();
+
   const conn = getConnection(ocppId);
-  if (!conn) return false;
+  if (!conn) {
+    const reason = `charge point not connected (online: ${connected.join(", ") || "none"})`;
+    console.warn(`[ocpp] RemoteStart ${ocppId} gun ${connectorId}: ${reason}`);
+    return { success: false, reason };
+  }
+
   const uniqueId = randomUUID();
   const call = createCall(uniqueId, OCPP_ACTIONS.REMOTE_START_TRANSACTION, {
     connectorId,
     idTag,
   });
-  conn.ws.send(JSON.stringify(call));
-  return true;
+
+  console.log(`[ocpp] RemoteStart → ${ocppId} gun ${connectorId} idTag=${idTag} callId=${uniqueId}`);
+
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      conn.pendingCalls.delete(uniqueId);
+      console.warn(`[ocpp] RemoteStart ${ocppId}: timeout (15s) waiting for Accepted`);
+      resolve({ success: false, reason: "timeout waiting for charge point Accepted" });
+    }, 15_000);
+
+    conn.pendingCalls.set(uniqueId, {
+      resolve: (payload) => {
+        clearTimeout(timeout);
+        const status = (payload.status as string) ?? "Unknown";
+        const ok = status === "Accepted";
+        console.log(`[ocpp] RemoteStart ${ocppId}: CallResult status=${status}`);
+        resolve({
+          success: ok,
+          reason: ok ? "accepted" : `charge point returned ${status}`,
+        });
+      },
+      reject: () => {
+        clearTimeout(timeout);
+        resolve({ success: false, reason: "charge point rejected call" });
+      },
+    });
+
+    conn.ws.send(JSON.stringify(call));
+  });
 }
 
 export async function sendRemoteStop(ocppIdOrConn: string | ChargePointConnection, transactionId: number) {

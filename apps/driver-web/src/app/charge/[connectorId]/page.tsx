@@ -71,14 +71,18 @@ export default function ChargePage() {
     const conn = await api<ConnectorInfo>(`/connectors/${connectorId}`);
     setConnector(conn);
     try {
-      const active = await api<Session | null>("/sessions/active");
+      const active = await api<Session | null>(`/sessions/active?connectorId=${connectorId}`);
       if (active && active.status !== "completed") {
         setSession(active);
         sessionIdRef.current = active.id;
         syncLiveFromSession(active);
+      } else {
+        setSession(null);
+        sessionIdRef.current = null;
       }
     } catch {
-      /* no active session */
+      setSession(null);
+      sessionIdRef.current = null;
     }
   }, [connectorId]);
 
@@ -91,21 +95,39 @@ export default function ChargePage() {
   }, [connectorId, router, refresh]);
 
   useEffect(() => {
+    sessionIdRef.current = session?.id ?? null;
+  }, [session?.id]);
+
+  useEffect(() => {
     const unsub = subscribeEvents((channel, data) => {
-      const d = data as { sessionId?: string; powerKw?: number; socPercent?: number; batteryTempC?: number; energyKwh?: number; costLkr?: number; status?: string };
-      if (channel === "session:update" && session && d.sessionId === session.id) {
-        setLive((prev) => ({
-          powerKw: d.powerKw ?? prev.powerKw,
-          soc: d.socPercent ?? prev.soc,
-          temp: d.batteryTempC ?? prev.temp,
-          energy: d.energyKwh ?? prev.energy,
-          cost: d.costLkr ?? prev.cost,
-        }));
-        if (d.status === "completed") refresh();
+      const d = data as {
+        sessionId?: string;
+        powerKw?: number;
+        socPercent?: number;
+        batteryTempC?: number;
+        energyKwh?: number;
+        costLkr?: number;
+        status?: string;
+      };
+      if (channel !== "session:update" || !d.sessionId) return;
+      if (d.sessionId !== sessionIdRef.current) return;
+
+      if (d.status) {
+        setSession((prev) =>
+          prev && prev.id === d.sessionId ? { ...prev, status: d.status! } : prev
+        );
       }
+      setLive((prev) => ({
+        powerKw: d.powerKw ?? prev.powerKw,
+        soc: d.socPercent ?? prev.soc,
+        temp: d.batteryTempC ?? prev.temp,
+        energy: d.energyKwh ?? prev.energy,
+        cost: d.costLkr ?? prev.cost,
+      }));
+      if (d.status === "completed" || d.status === "active") refresh();
     });
     return unsub;
-  }, [session, refresh]);
+  }, [refresh]);
 
   useEffect(() => {
     if (!session) return;
@@ -116,13 +138,51 @@ export default function ChargePage() {
   async function startCharge() {
     setActionLoading(true);
     try {
-      await api("/sessions/start", {
+      const res = await api<{ sessionId: string; status: string }>("/sessions/start", {
         method: "POST",
         body: JSON.stringify({ connectorId }),
+      });
+      sessionIdRef.current = res.sessionId;
+      setSession({
+        id: res.sessionId,
+        status: res.status,
+        energyKwh: 0,
+        costLkr: 0,
+        allocatedKw: null,
+        syncedFromOffline: false,
+        meterValues: [],
       });
       await refresh();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to start");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function cancelPending() {
+    if (!session) return;
+    setActionLoading(true);
+    try {
+      await api(`/sessions/${session.id}/cancel`, { method: "POST" });
+      setSession(null);
+      sessionIdRef.current = null;
+      setLive({ powerKw: 0, soc: 0, temp: 0, energy: 0, cost: 0 });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to cancel");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function retryPending() {
+    if (!session) return;
+    setActionLoading(true);
+    try {
+      await api(`/sessions/${session.id}/retry`, { method: "POST" });
+      await refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to retry");
     } finally {
       setActionLoading(false);
     }
@@ -169,7 +229,34 @@ export default function ChargePage() {
 
       {isActive ? (
         <div className="card">
-          <h3>Charging in progress</h3>
+          <h3>{session?.status === "pending" ? "Starting session…" : "Charging in progress"}</h3>
+          {session?.status === "pending" && (
+            <>
+              <p style={{ fontSize: "0.875rem", color: "#666", marginBottom: "0.75rem" }}>
+                Waiting for the charge point to confirm. Live stats appear within a few seconds.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
+                  onClick={retryPending}
+                  disabled={actionLoading}
+                >
+                  Retry connection
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1 }}
+                  onClick={cancelPending}
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
           <div className="stat-grid">
             <div className="stat">
               <div className="stat-value">{live.powerKw.toFixed(1)}</div>

@@ -1,5 +1,4 @@
 import Fastify from "fastify";
-import { createServer } from "http";
 import { WebSocketServer } from "ws";
 import { setupOcppWebSocket } from "./ocpp-server.js";
 import { internalRoutes } from "./internal-routes.js";
@@ -26,17 +25,11 @@ async function main() {
   const app = Fastify({ logger: true });
   await app.register(internalRoutes);
 
-  const server = createServer(app.server);
-  const wss = new WebSocketServer({ server });
-  setupOcppWebSocket(wss);
+  await app.listen({ port: PORT, host: "0.0.0.0" });
+  console.log(`OCPP gateway listening on http://localhost:${PORT} (ws path /ocpp/{chargePointId})`);
 
-  await new Promise<void>((resolve, reject) => {
-    server.listen(PORT, "0.0.0.0", () => {
-      console.log(`OCPP gateway listening on http://localhost:${PORT} (ws path /ocpp/{chargePointId})`);
-      resolve();
-    });
-    server.on("error", reject);
-  });
+  const wss = new WebSocketServer({ server: app.server });
+  setupOcppWebSocket(wss);
 
   void waitForDatabase();
   void connectRedis().catch((err) =>

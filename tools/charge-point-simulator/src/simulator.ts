@@ -117,20 +117,37 @@ export class ChargePointSimulator {
       case OCPP_ACTIONS.REMOTE_START_TRANSACTION: {
         this.connectorId = (payload.connectorId as number) ?? 1;
         this.idTag = (payload.idTag as string) ?? "TAG-demo";
-        await this.sendStatus(this.connectorId, "Preparing");
-        await this.sendStatus(this.connectorId, "Charging");
-        const result = await this.call(OCPP_ACTIONS.START_TRANSACTION, {
-          connectorId: this.connectorId,
-          idTag: this.idTag,
-          meterStart: 0,
-          timestamp: new Date().toISOString(),
-        });
-        this.transactionId = (result.transactionId as number) ?? null;
-        this.isCharging = true;
-        this.soc = 20;
-        this.energyKwh = 0;
-        this.startMetering();
+        console.log(
+          `[${this.ocppId}] ← RemoteStart gun=${this.connectorId} idTag=${this.idTag}`
+        );
+        // OCPP 1.6J: respond Accepted immediately, then StartTransaction
         this.ws?.send(JSON.stringify(createCallResult(uniqueId, { status: "Accepted" })));
+
+        void (async () => {
+          try {
+            await this.sendStatus(this.connectorId, "Preparing");
+            await this.sendStatus(this.connectorId, "Charging");
+            const result = await this.call(OCPP_ACTIONS.START_TRANSACTION, {
+              connectorId: this.connectorId,
+              idTag: this.idTag,
+              meterStart: 0,
+              timestamp: new Date().toISOString(),
+            });
+            this.transactionId = (result.transactionId as number) ?? null;
+            if (!this.transactionId) {
+              console.error(`[${this.ocppId}] StartTransaction failed — no transactionId`, result);
+              await this.sendStatus(this.connectorId, "Available");
+              return;
+            }
+            console.log(`[${this.ocppId}] → StartTransaction ok txId=${this.transactionId}`);
+            this.isCharging = true;
+            this.soc = 20;
+            this.energyKwh = 0;
+            this.startMetering();
+          } catch (err) {
+            console.error(`[${this.ocppId}] RemoteStart flow error:`, (err as Error).message);
+          }
+        })();
         break;
       }
 

@@ -1,9 +1,34 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { redisSub, REDIS_CHANNELS } from "../redis.js";
 
+function corsHeaders(req: FastifyRequest): Record<string, string> {
+  const origin = req.headers.origin;
+  if (origin) {
+    return {
+      "Access-Control-Allow-Origin": origin,
+      Vary: "Origin",
+    };
+  }
+  return { "Access-Control-Allow-Origin": "*" };
+}
+
 export async function sseRoutes(app: FastifyInstance) {
+  app.options("/events", async (req, reply) => {
+    reply
+      .headers({
+        ...corsHeaders(req),
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      })
+      .status(204)
+      .send();
+  });
+
   app.get("/events", async (req, reply) => {
+    reply.hijack();
+
     reply.raw.writeHead(200, {
+      ...corsHeaders(req),
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",

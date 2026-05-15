@@ -1,13 +1,22 @@
 import type { FastifyInstance } from "fastify";
+import { getAllConnections } from "./connections.js";
 import { sendRemoteStart, sendRemoteStop, sendSetChargingProfile, sendReset } from "./ocpp-server.js";
 
 export async function internalRoutes(app: FastifyInstance) {
+  app.get("/internal/connections", async () => ({
+    connected: getAllConnections(),
+  }));
+
   app.post<{
     Body: { chargePointOcppId: string; connectorId: number; idTag: string };
   }>("/internal/remote-start", async (req) => {
     const { chargePointOcppId, connectorId, idTag } = req.body;
-    const ok = await sendRemoteStart(chargePointOcppId, connectorId, idTag);
-    return { success: ok };
+    console.log(
+      `[ocpp-gateway] POST /internal/remote-start cp=${chargePointOcppId} gun=${connectorId} idTag=${idTag}`
+    );
+    const result = await sendRemoteStart(chargePointOcppId, connectorId, idTag);
+    console.log(`[ocpp-gateway] remote-start result:`, result);
+    return result;
   });
 
   app.post<{
