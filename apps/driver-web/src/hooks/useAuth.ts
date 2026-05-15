@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api, getToken } from "@/lib/api";
 import { AUTH_CHANGED_EVENT, clearAuth, getStoredUser, type AuthUser } from "@/lib/auth";
 
 export function useAuth() {
+  const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -45,7 +47,8 @@ export function useAuth() {
   const signOut = useCallback(() => {
     clearAuth();
     setUser(null);
-  }, []);
+    router.replace("/login");
+  }, [router]);
 
   return {
     user,
